@@ -51,3 +51,45 @@ def test_dedup_acumula_fuente(tmp_path):
     fuente = conn.execute("SELECT fuente FROM colegios").fetchone()["fuente"]
     conn.close()
     assert "MEN" in fuente and "UNCOLI" in fuente
+
+
+def test_dedup_rellena_campos_nulos(tmp_path):
+    """Cuando un colegio se inserta de nuevo (dedup), los campos NULL deben llenarse con los nuevos valores."""
+    ruta = tmp_path / "t.db"
+    inicializar_db(ruta)
+    insertar_colegio(ruta, nombre="Colegio X", ciudad="Bogotá",
+                     departamento="Bogotá D.C.", fuente="MEN", nit="800-1")
+    insertar_colegio(ruta, nombre="Colegio X", ciudad="Bogotá",
+                     departamento="Bogotá D.C.", fuente="UNCOLI", nit="800-1",
+                     web="http://x.edu.co", correo="info@x.edu.co")
+
+    conn = conectar(ruta)
+    row = conn.execute("SELECT web, correo FROM colegios WHERE nit = '800-1'").fetchone()
+    conn.close()
+    assert row["web"] == "http://x.edu.co"
+    assert row["correo"] == "info@x.edu.co"
+
+
+def test_dedup_no_sobrescribe_campos_existentes(tmp_path):
+    """Cuando un campo ya tiene valor, el dedup NO lo reemplaza con un nuevo valor distinto."""
+    ruta = tmp_path / "t.db"
+    inicializar_db(ruta)
+    insertar_colegio(ruta, nombre="Colegio X", ciudad="Bogotá",
+                     departamento="Bogotá D.C.", fuente="MEN",
+                     web="http://primero.edu.co")
+    insertar_colegio(ruta, nombre="Colegio X", ciudad="Bogotá",
+                     departamento="Bogotá D.C.", fuente="UNCOLI",
+                     web="http://segundo.edu.co")
+
+    conn = conectar(ruta)
+    web = conn.execute("SELECT web FROM colegios WHERE nombre = 'Colegio X'").fetchone()["web"]
+    conn.close()
+    assert web == "http://primero.edu.co"
+
+
+def test_nombre_que_se_normaliza_vacio_falla(tmp_path):
+    ruta = tmp_path / "t.db"
+    inicializar_db(ruta)
+    with pytest.raises(ValueError, match="cadena vacía"):
+        insertar_colegio(ruta, nombre="Colegio", ciudad="Bogotá",
+                         departamento="Bogotá D.C.", fuente="MEN")

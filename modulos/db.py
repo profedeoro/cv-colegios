@@ -40,6 +40,11 @@ def insertar_colegio(
 ) -> int:
     """Inserta un colegio. Si ya existe (por NIT o nombre+ciudad), acumula fuente. Devuelve id."""
     nombre_norm = normalizar_nombre(nombre)
+    if not nombre_norm:
+        raise ValueError(
+            f"El nombre '{nombre}' se normaliza a cadena vacía (solo contiene palabras genéricas o sufijos legales). "
+            "Agrega palabras distintivas al nombre antes de insertar."
+        )
     conn = conectar(ruta_bd)
     try:
         # Buscar duplicado
