@@ -37,6 +37,7 @@ config/*_token.json
 data/colegios.db
 data/colegios.db.bak*
 data/cv_base.pdf
+data/cv_base.docx
 data/cv_base_polished.pdf
 data/cv_base_polished.docx
 data/plantilla_base.docx
