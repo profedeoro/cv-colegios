@@ -10,7 +10,7 @@ def test_logger_escribe_a_archivo_diario(tmp_path):
     archivo_esperado = tmp_path / f"{date.today().isoformat()}.log"
     assert archivo_esperado.exists()
     contenido = archivo_esperado.read_text(encoding="utf-8")
-    assert "prueba" in contenido
+    assert "[prueba]" in contenido
     assert "mensaje de prueba" in contenido
 
 
