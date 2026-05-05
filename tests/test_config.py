@@ -1,9 +1,8 @@
-import os
 import pytest
 from modulos.config import cargar_config, ConfigError
 
 
-def test_cargar_config_lee_anthropic_api_key(monkeypatch, tmp_path):
+def test_cargar_config_lee_anthropic_api_key(tmp_path):
     env_file = tmp_path / ".env"
     env_file.write_text("ANTHROPIC_API_KEY=sk-ant-test-123\n")
     config = cargar_config(env_path=env_file)
