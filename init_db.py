@@ -2,7 +2,7 @@
 from pathlib import Path
 from modulos.db import inicializar_db
 
-RUTA_BD = Path("data/colegios.db")
+RUTA_BD = Path(__file__).parent / "data" / "colegios.db"
 
 
 def main():

@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS ix_colegios_thread ON colegios(gmail_thread_id);
 -- Tabla de borradores generados (un colegio puede tener varios: inicial + seguimiento)
 CREATE TABLE IF NOT EXISTS borradores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    colegio_id INTEGER NOT NULL REFERENCES colegios(id),
+    colegio_id INTEGER NOT NULL REFERENCES colegios(id) ON DELETE RESTRICT,
     tipo TEXT NOT NULL CHECK (tipo IN ('inicial', 'seguimiento')),
     asunto TEXT NOT NULL,
     cuerpo_carta TEXT NOT NULL,
