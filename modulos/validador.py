@@ -21,7 +21,10 @@ def extraer_hechos(texto: str) -> set[str]:
             hechos.add(candidato)
         else:
             inicio = match.start()
-            if inicio > 0 and texto[inicio - 1] not in ".!?":
+            # Strip trailing whitespace from everything before the match, then check
+            # if the last non-whitespace character is sentence-ending punctuation.
+            antes = texto[:inicio].rstrip()
+            if antes and antes[-1] not in ".!?":
                 hechos.add(candidato)
     return hechos
 

@@ -31,3 +31,27 @@ def test_extrae_porcentajes_y_horas():
     hechos = extraer_hechos("Curso de 60 horas con 95% de asistencia.")
     assert "60" in hechos
     assert "95" in hechos
+
+
+def test_palabra_al_inicio_de_oracion_no_extrae():
+    """Palabra capitalizada inmediatamente después de '. ' o '! ' o '? ' no debe extraerse."""
+    hechos = extraer_hechos("Hola. Bogota es bonita.")
+    assert "Bogota" not in hechos
+
+
+def test_palabra_al_inicio_del_texto_no_extrae():
+    """Palabra capitalizada al inicio absoluto del texto no debe extraerse."""
+    hechos = extraer_hechos("Bogota es bonita.")
+    assert "Bogota" not in hechos
+
+
+def test_palabra_propia_a_mitad_de_oracion_si_extrae():
+    """Pero un nombre propio en medio de la oración SÍ se extrae."""
+    hechos = extraer_hechos("Vivo en Bogota desde 2024.")
+    assert "Bogota" in hechos
+
+
+def test_palabra_despues_de_signo_exclamacion():
+    """Después de '! ' tampoco se extrae."""
+    hechos = extraer_hechos("Increíble! Bogota nos sorprendió.")
+    assert "Bogota" not in hechos
