@@ -24,9 +24,14 @@ Thumbs.db
 .DS_Store
 
 # Secretos del proyecto (NUNCA versionar)
+.env
+.env.*
+!.env.example
+.envrc
 config/.env
 config/credentials.json
-config/gmail_token.json
+config/token*.json
+config/*_token.json
 
 # Datos del proyecto
 data/colegios.db
