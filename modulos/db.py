@@ -90,3 +90,52 @@ def contar_colegios(ruta_bd) -> int:
         return conn.execute("SELECT COUNT(*) FROM colegios").fetchone()[0]
     finally:
         conn.close()
+
+
+class EstadoInvalidoError(Exception):
+    pass
+
+
+TRANSICIONES_VALIDAS = {
+    "descubierto": {"enriquecido", "sin_correo", "error", "descartado", "revisar_manualmente"},
+    "enriquecido": {"borrador_creado", "descartado", "revisar_manualmente"},
+    "sin_correo": {"enriquecido", "descartado"},
+    "borrador_creado": {"enviado", "rebotó", "descartado"},
+    "enviado": {"respondió", "seguimiento_pendiente", "rebotó", "descartado"},
+    "seguimiento_pendiente": {"respondió", "sin_respuesta", "descartado"},
+    "respondió": {"descartado"},
+    "rebotó": {"descartado"},
+    "sin_respuesta": {"descartado"},
+    "descartado": set(),
+    "error": {"descubierto", "descartado"},
+    "revisar_manualmente": {"enriquecido", "descartado"},
+}
+
+ESTADOS_VALIDOS = set(TRANSICIONES_VALIDAS.keys())
+
+
+def obtener_estado(ruta_bd, colegio_id: int) -> str:
+    conn = conectar(ruta_bd)
+    try:
+        row = conn.execute("SELECT estado FROM colegios WHERE id = ?", (colegio_id,)).fetchone()
+        if not row:
+            raise EstadoInvalidoError(f"colegio id={colegio_id} no existe")
+        return row["estado"]
+    finally:
+        conn.close()
+
+
+def cambiar_estado(ruta_bd, colegio_id: int, nuevo_estado: str) -> None:
+    if nuevo_estado not in ESTADOS_VALIDOS:
+        raise EstadoInvalidoError(f"estado desconocido: {nuevo_estado}")
+    actual = obtener_estado(ruta_bd, colegio_id)
+    if nuevo_estado not in TRANSICIONES_VALIDAS[actual]:
+        raise EstadoInvalidoError(
+            f"no se puede pasar de {actual} a {nuevo_estado}"
+        )
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute("UPDATE colegios SET estado = ? WHERE id = ?", (nuevo_estado, colegio_id))
+        conn.commit()
+    finally:
+        conn.close()
