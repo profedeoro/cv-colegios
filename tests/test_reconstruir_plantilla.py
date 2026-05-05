@@ -46,3 +46,37 @@ def test_reconstruir_plantilla_lee_cv_base(tmp_path):
     doc = Document(salida_docx)
     texto = "\n".join(p.text for p in doc.paragraphs)
     assert "{{PERFIL}}" in texto
+
+
+def test_reconstruir_plantilla_acepta_respuesta_con_code_fence(tmp_path):
+    """Cuando Claude envuelve la respuesta en ```json...```, debe parsearla bien."""
+    cv_pdf = _generar_pdf_de_prueba(tmp_path)
+    salida_docx = tmp_path / "plantilla.docx"
+    salida_pdf_pulido = tmp_path / "cv_pulido.pdf"
+
+    respuesta_con_fence = (
+        '```JSON\n'
+        '{"version_pulida": "Daniel Villalba\\nPerfil.",'
+        '"version_con_placeholders": "Daniel Villalba\\n{{PERFIL}}",'
+        '"cambios_realizados": [],'
+        '"advertencias": []}'
+        '\n```'
+    )
+
+    with patch("reconstruir_plantilla.ClienteClaude") as mock_cliente_cls:
+        cliente = mock_cliente_cls.return_value
+        cliente.preguntar.return_value = (respuesta_con_fence, 0.01)
+
+        from reconstruir_plantilla import ejecutar
+        ejecutar(
+            cv_pdf=cv_pdf,
+            salida_docx=salida_docx,
+            salida_pdf=salida_pdf_pulido,
+            api_key="sk-test",
+            confirmar=lambda _: True,
+        )
+
+    assert salida_docx.exists()
+    doc = Document(salida_docx)
+    texto = "\n".join(p.text for p in doc.paragraphs)
+    assert "{{PERFIL}}" in texto

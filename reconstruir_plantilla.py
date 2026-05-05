@@ -23,7 +23,8 @@ RUTA_PROMPT = Path(__file__).parent / "prompts" / "pulir_cv.txt"
 def _texto_a_docx(texto: str, salida: Path) -> None:
     """Convierte texto plano (con \\n como saltos) a un DOCX simple."""
     doc = Document()
-    for parrafo in texto.split("\n"):
+    texto_normalizado = texto.replace("\r\n", "\n").replace("\r", "\n")
+    for parrafo in texto_normalizado.split("\n"):
         doc.add_paragraph(parrafo)
     salida.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(salida))
@@ -46,17 +47,24 @@ def ejecutar(
             f"No se encontró {cv_pdf}. Coloca tu HV en esa ruta antes de correr."
         )
 
+    if not RUTA_PROMPT.exists():
+        raise FileNotFoundError(
+            f"No se encontró el prompt en {RUTA_PROMPT}. El repositorio puede estar incompleto."
+        )
+
     texto_cv = leer_pdf(cv_pdf)
     sistema = RUTA_PROMPT.read_text(encoding="utf-8")
     cliente = ClienteClaude(api_key=api_key)
     respuesta, costo = cliente.preguntar(sistema=sistema, usuario=texto_cv, max_tokens=8000)
 
-    # Limpiar code fence si Claude lo envolvió
+    # Limpiar code fence si Claude lo envolvió (robusto a variantes JSON/json/json con espacios)
     raw = respuesta.strip()
     if raw.startswith("```"):
         raw = raw.split("```", 2)[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+        if raw.lower().lstrip().startswith("json"):
+            # Saltar la primera línea entera (la del language tag)
+            if "\n" in raw:
+                raw = raw[raw.index("\n") + 1:]
         raw = raw.rsplit("```", 1)[0]
     datos = json.loads(raw.strip())
 
@@ -85,7 +93,7 @@ def _confirmar_interactivo(datos: dict) -> bool:
     if datos.get("advertencias"):
         print("\n=== Advertencias ===")
         for adv in datos["advertencias"]:
-            print(f"  ⚠ {adv}")
+            print(f"  [!] {adv}")
     respuesta = input("\n¿Aceptas estos cambios y guardas la plantilla? [s/N]: ").strip().lower()
     return respuesta == "s"
 
