@@ -71,3 +71,10 @@ CREATE TABLE IF NOT EXISTS registro_ejecuciones (
 
 CREATE INDEX IF NOT EXISTS ix_registro_modulo_fecha
     ON registro_ejecuciones(modulo, fecha);
+
+-- Tabla de metadatos clave-valor (para hash del CV, versión, etc.)
+CREATE TABLE IF NOT EXISTS metadatos (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL,
+    fecha_actualizacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

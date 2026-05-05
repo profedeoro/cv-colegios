@@ -139,3 +139,26 @@ def cambiar_estado(ruta_bd, colegio_id: int, nuevo_estado: str) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def guardar_hash_cv(ruta_bd, hash_valor: str) -> None:
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            """INSERT INTO metadatos (clave, valor) VALUES ('hash_cv', ?)
+               ON CONFLICT(clave) DO UPDATE
+               SET valor = excluded.valor, fecha_actualizacion = CURRENT_TIMESTAMP""",
+            (hash_valor,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def hash_cv_actual(ruta_bd) -> str | None:
+    conn = conectar(ruta_bd)
+    try:
+        row = conn.execute("SELECT valor FROM metadatos WHERE clave = 'hash_cv'").fetchone()
+        return row["valor"] if row else None
+    finally:
+        conn.close()

@@ -3,6 +3,7 @@
 Uso:
     python reconstruir_plantilla.py
 """
+import hashlib
 import json
 from pathlib import Path
 from typing import Callable
@@ -11,6 +12,7 @@ from docx import Document
 
 from modulos.cliente_claude import ClienteClaude
 from modulos.config import cargar_config
+from modulos.db import guardar_hash_cv
 from modulos.pdf_conversor import convertir_docx_a_pdf
 from modulos.pdf_lector import leer_pdf
 
@@ -80,6 +82,12 @@ def ejecutar(
     _texto_a_docx(datos["version_pulida"], docx_pulido)
     convertir_docx_a_pdf(docx_pulido, salida_pdf)
     docx_pulido.unlink(missing_ok=True)
+
+    # Guardar hash sha256 del PDF para detectar cambios futuros del CV
+    hash_pdf = hashlib.sha256(cv_pdf.read_bytes()).hexdigest()
+    bd_path = Path(__file__).parent / "data" / "colegios.db"
+    if bd_path.exists():
+        guardar_hash_cv(bd_path, hash_pdf)
 
     print(f"Plantilla guardada en {salida_docx}")
     print(f"Version pulida guardada en {salida_pdf}")
