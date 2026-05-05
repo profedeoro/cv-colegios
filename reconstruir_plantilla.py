@@ -7,7 +7,6 @@ originales (fuente, negrillas, alineaciones).
 Uso:
     python reconstruir_plantilla.py
 """
-import copy
 import hashlib
 import json
 from pathlib import Path
@@ -109,9 +108,19 @@ def ejecutar(
     doc_plantilla = Document(str(cv_docx))
     aplicar_correcciones_a_documento(doc_plantilla, correcciones)
 
+    n_parrafos = len(doc_plantilla.paragraphs)
+
+    def _validar_indice(idx: int, contexto: str) -> None:
+        if not 0 <= idx < n_parrafos:
+            raise ValueError(
+                f"Índice {idx} fuera de rango ({contexto}). El documento tiene {n_parrafos} párrafos."
+            )
+
     # Reemplazar bloque Perfil: el primer índice se vuelve {{PERFIL}}, los demás se vacían
     indices_perfil = datos.get("bloque_perfil", [])
     if indices_perfil:
+        for idx in indices_perfil:
+            _validar_indice(idx, "bloque_perfil")
         reemplazar_texto_parrafo(doc_plantilla.paragraphs[indices_perfil[0]], "{{PERFIL}}")
         for idx in indices_perfil[1:]:
             reemplazar_texto_parrafo(doc_plantilla.paragraphs[idx], "")
@@ -119,12 +128,15 @@ def ejecutar(
     # Reemplazar cada experiencia
     for n, exp in enumerate(datos.get("experiencias", []), start=1):
         if "titulo_idx" in exp:
+            _validar_indice(exp["titulo_idx"], f"experiencias[{n-1}].titulo_idx")
             reemplazar_texto_parrafo(
                 doc_plantilla.paragraphs[exp["titulo_idx"]],
                 f"{{{{EXP_{n}_TITULO}}}}",
             )
         bullets = exp.get("bullets_indices", [])
         if bullets:
+            for idx in bullets:
+                _validar_indice(idx, f"experiencias[{n-1}].bullets_indices")
             reemplazar_texto_parrafo(
                 doc_plantilla.paragraphs[bullets[0]],
                 f"{{{{EXP_{n}_BULLETS}}}}",

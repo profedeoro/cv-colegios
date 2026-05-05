@@ -168,3 +168,33 @@ def test_falla_si_cv_no_existe(tmp_path):
             api_key="sk-test",
             confirmar=lambda _: True,
         )
+
+
+def test_falla_si_claude_devuelve_indice_invalido(tmp_path):
+    """Si Claude devuelve un índice fuera de rango, debe lanzar ValueError descriptivo."""
+    cv_docx = _crear_docx_fixture(tmp_path)
+    salida_plantilla = tmp_path / "plantilla.docx"
+    salida_pulido_docx = tmp_path / "pulido.docx"
+    salida_pdf = tmp_path / "pulido.pdf"
+
+    respuesta_simulada = (
+        '{"correcciones": [],'
+        ' "bloque_perfil": [999],'  # índice imposible
+        ' "experiencias": [],'
+        ' "advertencias": []}'
+    )
+
+    with patch("reconstruir_plantilla.ClienteClaude") as mock_cls:
+        cliente = mock_cls.return_value
+        cliente.preguntar.return_value = (respuesta_simulada, 0.01)
+        from reconstruir_plantilla import ejecutar
+        with pytest.raises(ValueError, match="Índice 999"):
+            ejecutar(
+                cv_docx=cv_docx,
+                salida_docx_plantilla=salida_plantilla,
+                salida_docx_pulido=salida_pulido_docx,
+                salida_pdf=salida_pdf,
+                api_key="sk-test",
+                confirmar=lambda _: True,
+                ruta_bd=tmp_path / "no.db",
+            )
