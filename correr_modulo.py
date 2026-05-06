@@ -10,8 +10,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from modulos.config import cargar_config, validar_google_cse
+from modulos.cliente_claude import ClienteClaude
+from modulos.config import cargar_config, validar_google_cse, validar_brave
 from modulos.descubrir import ejecutar as descubrir_ejecutar
+from modulos.enriquecer import ejecutar as enriquecer_ejecutar
 
 RAIZ = Path(__file__).parent
 DEFAULT_BD = RAIZ / "data" / "colegios.db"
@@ -22,7 +24,8 @@ DEFAULT_QUERIES = RAIZ / "config" / "queries_google.json"
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="CLI de cv-colegios")
-    parser.add_argument("modulo", choices=["descubrir"], help="Módulo a ejecutar")
+    parser.add_argument("modulo", choices=["descubrir", "enriquecer"], help="Módulo a ejecutar")
+    parser.add_argument("--max", type=int, default=30, help="Máximo de colegios a procesar (solo enriquecer)")
     parser.add_argument("--bd", default=str(DEFAULT_BD))
     parser.add_argument("--env", default=str(DEFAULT_ENV))
     parser.add_argument("--csv-men", default=str(DEFAULT_CSV_MEN))
@@ -52,6 +55,24 @@ def main() -> None:
         print(f"\nResumen de descubrimiento ({total} colegios nuevos):")
         for fuente, n in resumen.items():
             print(f"  {fuente}: +{n}")
+
+    elif args.modulo == "enriquecer":
+        config = cargar_config(args.env)
+        validar_brave(config)
+        cliente = ClienteClaude(api_key=config["ANTHROPIC_API_KEY"])
+        resultado = enriquecer_ejecutar(
+            ruta_bd=Path(args.bd),
+            cliente_claude=cliente,
+            brave_api_key=config["BRAVE_SEARCH_API_KEY"],
+            max_colegios=args.max,
+        )
+        r = resultado["resumen"]
+        print(f"\nResumen de enriquecimiento:")
+        print(f"  Enriquecidos: +{r.get('enriquecido', 0)}")
+        print(f"  Sin correo:   +{r.get('sin_correo', 0)}")
+        print(f"  Errores:      +{r.get('error', 0)}")
+        print(f"  Costo: ${resultado['costo_usd']:.4f} USD")
+        print(f"  Duracion: {resultado['duracion_seg']:.1f} seg")
 
 
 if __name__ == "__main__":
