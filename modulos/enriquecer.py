@@ -77,7 +77,7 @@ def procesar_colegio(ruta_bd, colegio: dict, cliente_claude, brave_api_key: str)
     texto = _texto_visible(html)
     try:
         perfil, costo = clasificar(texto, cliente_claude)
-    except (ValueError, KeyError) as e:
+    except Exception as e:
         log.warning(f"[{cid}] Clasificación falló: {e}")
         incrementar_intento_enriquecer(ruta_bd, cid)
         return {"colegio_id": cid, "estado_final": "error", "razon": f"clasificacion: {e}"}
