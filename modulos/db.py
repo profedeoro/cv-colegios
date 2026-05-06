@@ -162,3 +162,44 @@ def hash_cv_actual(ruta_bd) -> str | None:
         return row["valor"] if row else None
     finally:
         conn.close()
+
+
+def registrar_ejecucion(
+    ruta_bd,
+    *,
+    modulo: str,
+    duracion_segundos: float,
+    estado: str,
+    colegios_procesados: int = 0,
+    mensaje: str | None = None,
+    costo_api_usd: float = 0.0,
+) -> None:
+    """Inserta una fila en registro_ejecuciones."""
+    if estado not in ("ok", "error"):
+        raise ValueError(f"estado inválido: {estado}")
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            """INSERT INTO registro_ejecuciones
+               (modulo, duracion_segundos, estado, colegios_procesados, mensaje, costo_api_usd)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (modulo, duracion_segundos, estado, colegios_procesados, mensaje, costo_api_usd),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def ultima_ejecucion_ok(ruta_bd, modulo: str) -> str | None:
+    """Devuelve la fecha (ISO string) de la última ejecución 'ok' del módulo, o None."""
+    conn = conectar(ruta_bd)
+    try:
+        row = conn.execute(
+            """SELECT fecha FROM registro_ejecuciones
+               WHERE modulo = ? AND estado = 'ok'
+               ORDER BY fecha DESC LIMIT 1""",
+            (modulo,),
+        ).fetchone()
+        return row["fecha"] if row else None
+    finally:
+        conn.close()
