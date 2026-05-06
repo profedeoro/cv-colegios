@@ -26,6 +26,16 @@ DOMINIOS_BLACKLIST = {
     "datos.gov.co", "www.datos.gov.co",
     "mineducacion.gov.co", "www.mineducacion.gov.co",
     "icfes.gov.co", "www.icfes.gov.co",
+    # Directorios de colegios (replican nombre en URL pero no son sitios reales)
+    "educacionencolombia.com.co",
+    "buscacolegio.com.co",
+    "colegiosencolombia.com",
+    "colegiosbogota.co",
+    "colegioscolombia.com.co",
+    "guiaacademica.com",
+    "elempleo.com",
+    "computrabajo.com.co",
+    "linkedin.com",
 }
 
 # Palabras genéricas y abreviaturas comunes que NO son distintivas.
@@ -56,14 +66,18 @@ UMBRAL_SIMILITUD = 0.5
 
 
 def _es_aceptable(url: str) -> bool:
-    """True si la URL no es de un dominio blacklisted."""
+    """True si la URL no es de un dominio blacklisted (matches exactos o subdominios)."""
     try:
         host = urlparse(url).netloc.lower()
     except Exception:
         return False
     if not host:
         return False
-    return host not in DOMINIOS_BLACKLIST
+    # Match exacto o subdominio: 'guia.educacionencolombia.com.co' matches 'educacionencolombia.com.co'
+    for blacklisted in DOMINIOS_BLACKLIST:
+        if host == blacklisted or host.endswith("." + blacklisted):
+            return False
+    return True
 
 
 def _es_edu_co(url: str) -> bool:

@@ -109,3 +109,27 @@ def test_encontrar_web_arma_query_correcta():
         query = kwargs.get("query") or (args[0] if args else "")
         assert "Colegio San Tarsicio" in query
         assert "Bogotá" in query
+
+
+def test_blacklist_atrapa_subdominios_de_directorios():
+    """guia-atlantico.educacionencolombia.com.co debe rechazarse igual que el dominio principal."""
+    from modulos.web_finder import _es_aceptable
+    assert _es_aceptable("https://guia-atlantico.educacionencolombia.com.co/educacion-tradicional/X.htm") is False
+    assert _es_aceptable("https://educacionencolombia.com.co/X") is False
+    assert _es_aceptable("https://www.buscacolegio.com.co/colegio/X") is False
+    # Pero un dominio normal sí pasa
+    assert _es_aceptable("https://nogales.edu.co/") is True
+
+
+def test_encontrar_web_descarta_directorios_de_colegios():
+    """Aunque la URL del directorio contenga el nombre del colegio (high score), debe rechazarse."""
+    from unittest.mock import patch
+    with patch("modulos.web_finder.buscar_brave") as mock:
+        mock.return_value = [
+            {"url": "https://guia.educacionencolombia.com.co/maria-camila",
+             "title": "Escuela Maria Camila - Educación en Colombia",
+             "description": "Maria Camila preescolar barranquilla"},
+            # No hay otro resultado válido
+        ]
+        web = encontrar_web("ESCUELA MARIA CAMILA", "Barranquilla", api_key="BSA-test")
+    assert web is None

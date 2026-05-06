@@ -68,3 +68,19 @@ def test_validar_dominio_rechaza_email_malformado():
     assert validar_dominio("notanemail") is False
     assert validar_dominio("@x.co") is False
     assert validar_dominio("x@") is False
+
+
+def test_extraer_emails_ignora_archivos_imagen():
+    """Strings tipo 'logo@2x.png' o 'icon@3x.svg' NO son emails."""
+    html = "<img src='bc-logo@3x.png'> <img src='icon@2x.svg'> info@real.com"
+    emails = extraer_emails(html)
+    assert "info@real.com" in emails
+    assert "bc-logo@3x.png" not in emails
+    assert "icon@2x.svg" not in emails
+
+
+def test_extraer_emails_ignora_otros_archivos():
+    html = "doc@manual.pdf style@theme.css script@app.js info@valido.edu.co"
+    emails = extraer_emails(html)
+    assert "info@valido.edu.co" in emails
+    assert all("." not in e.split("@")[1] or e.split("@")[1].rsplit(".", 1)[1] not in {"pdf", "css", "js"} for e in emails)
