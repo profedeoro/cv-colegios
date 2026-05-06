@@ -15,19 +15,20 @@ def normalizar_nombre(nombre: str) -> str:
 
 
 def normalizar_ciudad(ciudad: str) -> str:
-    """Normaliza un nombre de ciudad para almacenamiento y deduplicación uniforme.
+    """Normaliza un nombre de ciudad: title case + strip 'D.C.' suffix.
+
+    Solo elimina el sufijo "D.C." (variantes con espacios/puntos/casing) que aparece
+    en MEN para Bogotá. Preserva nombres multi-palabra como "El Carmen de Viboral".
 
     Ejemplos:
         "BOGOTÁ D.C." -> "Bogotá"
+        "Bogotá D.C"  -> "Bogotá"
         "MEDELLÍN"    -> "Medellín"
-        "Bogotá"      -> "Bogotá"
+        "El Carmen de Viboral" -> "El Carmen De Viboral"
         "BARRANQUILLA"-> "Barranquilla"
     """
-    if not ciudad:
+    if not ciudad or not ciudad.strip():
         return ciudad
-    # Toma solo la primera palabra (elimina sufijos como "D.C.")
-    primera = re.split(r"[\s,.]", ciudad.strip())[0]
-    if not primera:
-        primera = ciudad.strip()
-    # Convierte a título conservando los caracteres acentuados originales
-    return primera.title()
+    # Strip D.C. suffix (Bogotá D.C. -> Bogotá). Acepta variantes de espacios y puntos.
+    limpia = re.sub(r"\s+D\.?\s*C\.?\s*$", "", ciudad.strip(), flags=re.IGNORECASE)
+    return limpia.title()
