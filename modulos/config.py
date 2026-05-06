@@ -21,3 +21,19 @@ def cargar_config(env_path: Path | str = "config/.env") -> dict[str, str]:
         raise ConfigError(f"Variables faltantes en {env_path}: {', '.join(faltantes)}")
 
     return {k: v for k, v in valores.items() if v is not None}
+
+
+GOOGLE_CSE_REQUERIDAS = ["GOOGLE_CSE_API_KEY", "GOOGLE_CSE_ENGINE_ID"]
+
+
+def validar_google_cse(config: dict) -> None:
+    """Verifica que las claves de Google Custom Search estén presentes.
+
+    Solo llamar desde módulos que realmente las necesiten (descubrir.py).
+    """
+    faltantes = [k for k in GOOGLE_CSE_REQUERIDAS if not config.get(k)]
+    if faltantes:
+        raise ConfigError(
+            f"Faltan claves de Google Custom Search: {', '.join(faltantes)}. "
+            "Configúralas en config/.env (ver instrucciones en plan 2)."
+        )
