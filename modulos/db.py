@@ -203,3 +203,79 @@ def ultima_ejecucion_ok(ruta_bd, modulo: str) -> str | None:
         return row["fecha"] if row else None
     finally:
         conn.close()
+
+
+import json as _json
+
+
+def colegios_para_enriquecer(ruta_bd, limite: int = 30) -> list[dict]:
+    """Devuelve colegios en estado 'descubierto' con < 3 intentos, ordenados por fecha_descubierto."""
+    conn = conectar(ruta_bd)
+    try:
+        rows = conn.execute(
+            """SELECT * FROM colegios
+               WHERE estado = 'descubierto' AND intentos_enriquecer < 3
+               ORDER BY fecha_descubierto ASC
+               LIMIT ?""",
+            (limite,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def marcar_enriquecido(
+    ruta_bd, colegio_id: int,
+    *, web: str | None, correo: str | None, correo_destinatario: str | None,
+    perfil_pedagogico: dict, palabras_clave: list[str],
+) -> None:
+    """Marca un colegio como enriquecido y actualiza sus datos."""
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            """UPDATE colegios SET
+                 estado = 'enriquecido',
+                 web = COALESCE(web, ?),
+                 correo = ?,
+                 correo_destinatario = ?,
+                 perfil_pedagogico = ?,
+                 palabras_clave = ?,
+                 fecha_enriquecido = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (web, correo, correo_destinatario,
+             _json.dumps(perfil_pedagogico, ensure_ascii=False),
+             _json.dumps(palabras_clave, ensure_ascii=False),
+             colegio_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def marcar_sin_correo(ruta_bd, colegio_id: int, *, web: str | None = None) -> None:
+    """Marca un colegio como sin_correo (web encontrada pero no email válido)."""
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            """UPDATE colegios SET estado = 'sin_correo',
+                                    web = COALESCE(web, ?),
+                                    fecha_enriquecido = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (web, colegio_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def incrementar_intento_enriquecer(ruta_bd, colegio_id: int) -> None:
+    """Incrementa contador de intentos. Si llega a 3, el colegio queda fuera del próximo lote."""
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            "UPDATE colegios SET intentos_enriquecer = intentos_enriquecer + 1 WHERE id = ?",
+            (colegio_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
