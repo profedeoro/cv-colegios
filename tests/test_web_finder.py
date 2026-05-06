@@ -161,3 +161,23 @@ def test_acepta_si_nombre_tiene_un_solo_token_distintivo():
 def test_blacklist_atrapa_colegioscolombianos():
     from modulos.web_finder import _es_aceptable
     assert _es_aceptable("https://www.colegioscolombianos.com/escuela-x") is False
+
+
+def test_es_extranjero_detecta_tlds_no_colombianos():
+    from modulos.web_finder import _es_aceptable, _es_extranjero
+    assert _es_extranjero("https://www.juntadeandalucia.es/educacion") is True
+    assert _es_extranjero("https://portaldeeducacion.com.mx/") is True
+    assert _es_extranjero("https://colegiox.com.ar/") is True
+    assert _es_extranjero("https://escuelaboliviana.com.bo/") is True
+    # Colombianos NO son extranjeros
+    assert _es_extranjero("https://colegio.edu.co/") is False
+    assert _es_extranjero("https://colegio.com.co/") is False
+    assert _es_extranjero("https://colegio.org/") is False  # generic OK
+    assert _es_extranjero("https://colegio.online/") is False  # generic OK
+
+
+def test_es_aceptable_rechaza_extranjeros():
+    from modulos.web_finder import _es_aceptable
+    assert _es_aceptable("https://ceipsanjuanbautista.net/") is True  # .net es generic
+    assert _es_aceptable("https://www.juntadeandalucia.es/") is False
+    assert _es_aceptable("https://portaldeeducacion.com.mx/") is False

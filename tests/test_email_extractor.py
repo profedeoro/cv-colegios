@@ -84,3 +84,24 @@ def test_extraer_emails_ignora_otros_archivos():
     emails = extraer_emails(html)
     assert "info@valido.edu.co" in emails
     assert all("." not in e.split("@")[1] or e.split("@")[1].rsplit(".", 1)[1] not in {"pdf", "css", "js"} for e in emails)
+
+
+def test_validar_dominio_rechaza_email_con_dominio_vacio():
+    """Bug regresión: dominio con label vacío (e.g., 'algo@.com') no debe crashear."""
+    assert validar_dominio("algo@.com") is False
+    assert validar_dominio("algo@..") is False
+    assert validar_dominio("algo@") is False
+
+
+def test_validar_dominio_rechaza_emails_malformados_sin_crashear():
+    """Garantiza que ninguna excepción de dnspython se propaga."""
+    cases = [
+        "test@invalid_chars!.com",
+        "test@..com",
+        "test@-leading-hyphen.com",
+        "test@trailing-hyphen-.com",
+    ]
+    for caso in cases:
+        # No debe crashear, debe retornar False
+        result = validar_dominio(caso)
+        assert result is False, f"Falló con '{caso}'"

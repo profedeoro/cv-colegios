@@ -69,7 +69,10 @@ def seleccionar_destinatario(emails: list[str]) -> str | None:
 
 
 def validar_dominio(email: str) -> bool:
-    """True si el dominio del email tiene registros MX (DNS lookup)."""
+    """True si el dominio del email tiene registros MX (DNS lookup).
+
+    Cualquier excepción de DNS (incluyendo NXDOMAIN, EmptyLabel, malformed) → False.
+    """
     if "@" not in email:
         return False
     parts = email.split("@", 1)
@@ -79,6 +82,10 @@ def validar_dominio(email: str) -> bool:
     try:
         respuesta = dns.resolver.resolve(dominio, "MX", lifetime=5.0)
         return len(respuesta) > 0
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer,
-            dns.resolver.NoNameservers, dns.exception.Timeout):
+    except dns.exception.DNSException:
+        # Cubre NXDOMAIN, NoAnswer, NoNameservers, Timeout, EmptyLabel,
+        # SyntaxError de dominios malformados, etc.
+        return False
+    except Exception:
+        # Cualquier otro error de red → tratar como dominio inválido (failsafe).
         return False

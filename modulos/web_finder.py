@@ -83,16 +83,62 @@ PALABRAS_NO_DISTINTIVAS = {
 
 UMBRAL_SIMILITUD = 0.5
 
+# TLDs de países distintos a Colombia → siempre rechazar.
+# Colegios colombianos no usan .es, .com.mx, .com.ar, .com.br, etc.
+TLDS_EXTRANJEROS = {
+    ".es", ".eus", ".cat",                       # España
+    ".com.mx", ".mx", ".edu.mx", ".org.mx",      # México
+    ".com.ar", ".ar", ".edu.ar", ".org.ar",      # Argentina
+    ".com.br", ".br", ".edu.br",                 # Brasil
+    ".cl", ".com.cl",                            # Chile
+    ".pe", ".com.pe",                            # Perú
+    ".ec", ".com.ec", ".edu.ec",                 # Ecuador
+    ".ve", ".com.ve",                            # Venezuela
+    ".uy", ".com.uy",                            # Uruguay
+    ".py", ".com.py",                            # Paraguay
+    ".bo", ".com.bo",                            # Bolivia
+    ".cr", ".com.cr",                            # Costa Rica
+    ".pa", ".com.pa",                            # Panamá
+    ".gt", ".com.gt",                            # Guatemala
+    ".do", ".com.do",                            # Dominicana
+    ".pr", ".com.pr",                            # Puerto Rico
+    ".cu", ".com.cu",                            # Cuba
+    ".de", ".fr", ".it", ".pt", ".ch", ".be",    # Europa varios
+    ".uk", ".co.uk", ".ac.uk",                   # UK
+    ".us", ".edu", ".gov",                       # USA (.edu suele ser US, no Colombia)
+    ".ru", ".cn", ".jp", ".in",                  # otros
+}
 
-def _es_aceptable(url: str) -> bool:
-    """True si la URL no es de un dominio blacklisted (matches exactos o subdominios)."""
+
+def _es_extranjero(url: str) -> bool:
+    """True si la URL termina en un TLD extranjero (no Colombia)."""
     try:
         host = urlparse(url).netloc.lower()
     except Exception:
         return False
     if not host:
         return False
-    # Match exacto o subdominio: 'guia.educacionencolombia.com.co' matches 'educacionencolombia.com.co'
+    # Quitar puerto si lo hay
+    if ":" in host:
+        host = host.split(":")[0]
+    for tld in TLDS_EXTRANJEROS:
+        if host.endswith(tld):
+            return True
+    return False
+
+
+def _es_aceptable(url: str) -> bool:
+    """True si la URL no es blacklisted ni de un país extranjero."""
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return False
+    if not host:
+        return False
+    # 1. Rechazar TLDs extranjeros (no Colombia)
+    if _es_extranjero(url):
+        return False
+    # 2. Rechazar dominios blacklisted (match exacto o subdominio)
     for blacklisted in DOMINIOS_BLACKLIST:
         if host == blacklisted or host.endswith("." + blacklisted):
             return False
