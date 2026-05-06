@@ -46,6 +46,15 @@ DOMINIOS_BLACKLIST = {
     "colombiaeducativa.com",
     "36colegios.co",
     "36colegios.com",
+    "co.institucioneducativa.info",
+    "institucioneducativa.info",
+    "datoscolombia.com",
+    "micole.net",
+    "colegioscolombia.com",
+    "moovitapp.com",
+    "jimdofree.com",
+    "sites.google.com",
+    "yelp.com.co",
 }
 
 # Palabras genéricas y abreviaturas comunes que NO son distintivas.
