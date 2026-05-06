@@ -44,6 +44,8 @@ DOMINIOS_BLACKLIST = {
     "todocolegios.com",
     "buscocolegio.com",
     "colombiaeducativa.com",
+    "36colegios.co",
+    "36colegios.com",
 }
 
 # Palabras genéricas y abreviaturas comunes que NO son distintivas.
