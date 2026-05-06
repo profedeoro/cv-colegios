@@ -37,3 +37,15 @@ def validar_google_cse(config: dict) -> None:
             f"Faltan claves de Google Custom Search: {', '.join(faltantes)}. "
             "Configúralas en config/.env (ver instrucciones en plan 2)."
         )
+
+
+def validar_brave(config: dict) -> None:
+    """Verifica que la clave de Brave Search esté presente.
+
+    Solo llamar desde módulos que realmente la necesiten (web_finder, enriquecer).
+    """
+    if not config.get("BRAVE_SEARCH_API_KEY"):
+        raise ConfigError(
+            "Falta BRAVE_SEARCH_API_KEY. Crea una cuenta en https://api.search.brave.com "
+            "y configúrala en config/.env (ver Tarea 0 del plan 3)."
+        )

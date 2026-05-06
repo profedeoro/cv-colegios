@@ -48,3 +48,23 @@ def test_validar_google_cse_pasa_si_estan(tmp_path):
     )
     config = cargar_config(env_path=env_file)
     validar_google_cse(config)  # no debe lanzar
+
+
+def test_validar_brave_falla_si_falta(tmp_path):
+    from modulos.config import validar_brave
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=sk-test\n")
+    config = cargar_config(env_path=env_file)
+    with pytest.raises(ConfigError, match="BRAVE"):
+        validar_brave(config)
+
+
+def test_validar_brave_pasa_si_esta(tmp_path):
+    from modulos.config import validar_brave
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "ANTHROPIC_API_KEY=sk-test\n"
+        "BRAVE_SEARCH_API_KEY=BSA-test-12345\n"
+    )
+    config = cargar_config(env_path=env_file)
+    validar_brave(config)
