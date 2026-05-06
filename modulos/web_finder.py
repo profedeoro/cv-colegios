@@ -36,6 +36,14 @@ DOMINIOS_BLACKLIST = {
     "elempleo.com",
     "computrabajo.com.co",
     "linkedin.com",
+    "colegioscolombianos.com",
+    "colegioscolombianos.com.co",
+    "guiacolegios.com",
+    "guiacolegios.com.co",
+    "directoriocolegios.com",
+    "todocolegios.com",
+    "buscocolegio.com",
+    "colombiaeducativa.com",
 }
 
 # Palabras genéricas y abreviaturas comunes que NO son distintivas.
@@ -114,44 +122,52 @@ def _texto_resultado(item: dict) -> str:
     return _normalizar_para_match(" ".join(partes))
 
 
-def _score_match(nombre: str, item: dict) -> float:
-    """Fracción de tokens distintivos del nombre que aparecen en el item.
-
-    Usa substring match (no word match) porque las URLs concatenan palabras
-    (ej: "santamaria.edu.co" debe matchear "santa" y "maria").
+def _score_match(nombre: str, item: dict) -> tuple[int, float]:
+    """Devuelve (matches_absolutos, fracción) — fracción de tokens distintivos
+    del nombre que aparecen en el item (substring match en title+url+desc).
     """
     tokens = _tokens_distintivos(nombre)
     if not tokens:
-        return 0.0
+        return (0, 0.0)
     texto = _texto_resultado(item)
     matches = sum(1 for t in tokens if t in texto)
-    return matches / len(tokens)
+    return (matches, matches / len(tokens))
 
 
 def encontrar_web(nombre_colegio: str, ciudad: str, api_key: str) -> str | None:
     """Busca el sitio web del colegio en Brave. Devuelve URL o None.
 
-    Solo acepta resultados con similitud >= UMBRAL_SIMILITUD para evitar
-    asignar emails de colegios equivocados.
+    Reglas estrictas para evitar falsos positivos:
+    1. Descartar dominios blacklisted (redes sociales, directorios).
+    2. Calcular tokens distintivos del nombre.
+    3. Aceptar resultado solo si score >= UMBRAL_SIMILITUD Y matches >= min(2, len(tokens)).
+       Esto exige al menos 2 tokens coincidentes para nombres con 2+ palabras distintivas,
+       evitando matches falsos cuando solo 1 palabra coincide por coincidencia.
+    4. Preferir .edu.co; entre los aceptables, mayor score gana.
+    5. Si NINGÚN resultado pasa los filtros → None (mejor sin web que con web errónea).
     """
     query = f"{nombre_colegio} {ciudad} colegio sitio oficial"
     resultados = buscar_brave(query=query, api_key=api_key, count=10)
 
-    # 1. Filtrar dominios blacklisted
     aceptables = [r for r in resultados if _es_aceptable(r.get("url", ""))]
     if not aceptables:
         return None
 
-    # 2. Calcular score y filtrar por umbral
-    suficientes = [(r, _score_match(nombre_colegio, r)) for r in aceptables]
-    suficientes = [(r, s) for r, s in suficientes if s >= UMBRAL_SIMILITUD]
-    if not suficientes:
-        return None  # mejor None que web equivocada
+    tokens_total = len(_tokens_distintivos(nombre_colegio))
+    matches_minimos = min(2, tokens_total) if tokens_total > 0 else 1
 
-    # 3. Preferir .edu.co; en empate, mayor score gana
-    edu_co = [(r, s) for r, s in suficientes if _es_edu_co(r["url"])]
+    candidatos_validos = []
+    for r in aceptables:
+        matches, score = _score_match(nombre_colegio, r)
+        if score >= UMBRAL_SIMILITUD and matches >= matches_minimos:
+            candidatos_validos.append((r, score))
+
+    if not candidatos_validos:
+        return None
+
+    edu_co = [(r, s) for r, s in candidatos_validos if _es_edu_co(r["url"])]
     if edu_co:
         edu_co.sort(key=lambda x: -x[1])
         return edu_co[0][0]["url"]
-    suficientes.sort(key=lambda x: -x[1])
-    return suficientes[0][0]["url"]
+    candidatos_validos.sort(key=lambda x: -x[1])
+    return candidatos_validos[0][0]["url"]

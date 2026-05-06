@@ -24,7 +24,8 @@ def test_score_match_perfecto():
         url="https://nogales.edu.co/",
         title="Colegio Los Nogales - Bogotá",
     )
-    assert _score_match("Colegio Los Nogales", item) == 1.0
+    matches, score = _score_match("Colegio Los Nogales", item)
+    assert score == 1.0
 
 
 def test_score_match_parcial():
@@ -34,7 +35,7 @@ def test_score_match_parcial():
         title="Colegio Anglo Americano",
     )
     # Tokens distintivos de "Colegio Anglo Bilingue Americano": "anglo", "bilingue", "americano"
-    score = _score_match("Colegio Anglo Bilingue Americano", item)
+    matches, score = _score_match("Colegio Anglo Bilingue Americano", item)
     # 2 de 3 tokens matchean → 0.67
     assert 0.5 < score < 1.0
 
@@ -46,7 +47,7 @@ def test_score_match_cero():
         title="Marymount Barranquilla",
     )
     # "Maria Camila" — ninguno aparece en marymount/barranquilla
-    score = _score_match("Maria Camila Bilingue", item)
+    matches, score = _score_match("Maria Camila Bilingue", item)
     assert score == 0.0
 
 
@@ -133,3 +134,30 @@ def test_encontrar_web_descarta_directorios_de_colegios():
         ]
         web = encontrar_web("ESCUELA MARIA CAMILA", "Barranquilla", api_key="BSA-test")
     assert web is None
+
+
+def test_rechaza_si_solo_matchea_un_token_pero_nombre_tiene_dos():
+    """'libertad nino' tokens; URL solo matchea 'libertad' → rechaza (necesita 2 matches)."""
+    from unittest.mock import patch
+    with patch("modulos.web_finder.buscar_brave") as mock:
+        mock.return_value = [
+            {"url": "https://ielalibertad.edu.co/", "title": "IE La Libertad", "description": "colegio publico"},
+        ]
+        web = encontrar_web("CENTRO EDUCATIVO LIBERTAD DEL NIÑO", "Bogotá", api_key="BSA-test")
+    assert web is None
+
+
+def test_acepta_si_nombre_tiene_un_solo_token_distintivo():
+    """'marymount' único token distintivo; basta con 1 match."""
+    from unittest.mock import patch
+    with patch("modulos.web_finder.buscar_brave") as mock:
+        mock.return_value = [
+            {"url": "https://marymountbq.edu.co/", "title": "Colegio Marymount Barranquilla"},
+        ]
+        web = encontrar_web("Colegio Marymount", "Barranquilla", api_key="BSA-test")
+    assert web == "https://marymountbq.edu.co/"
+
+
+def test_blacklist_atrapa_colegioscolombianos():
+    from modulos.web_finder import _es_aceptable
+    assert _es_aceptable("https://www.colegioscolombianos.com/escuela-x") is False
