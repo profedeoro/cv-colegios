@@ -1,0 +1,58 @@
+"""CLI: corre un módulo del pipeline.
+
+Uso:
+    python correr_modulo.py descubrir
+    python correr_modulo.py descubrir --bd otra.db --csv-men otro.csv
+
+Por ahora solo soporta 'descubrir'. Otros módulos vendrán en planes posteriores.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+from modulos.config import cargar_config, validar_google_cse
+from modulos.descubrir import ejecutar as descubrir_ejecutar
+
+RAIZ = Path(__file__).parent
+DEFAULT_BD = RAIZ / "data" / "colegios.db"
+DEFAULT_ENV = RAIZ / "config" / ".env"
+DEFAULT_CSV_MEN = RAIZ / "data" / "raw" / "men_directorio.csv"
+DEFAULT_QUERIES = RAIZ / "config" / "queries_google.json"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="CLI de cv-colegios")
+    parser.add_argument("modulo", choices=["descubrir"], help="Módulo a ejecutar")
+    parser.add_argument("--bd", default=str(DEFAULT_BD))
+    parser.add_argument("--env", default=str(DEFAULT_ENV))
+    parser.add_argument("--csv-men", default=str(DEFAULT_CSV_MEN))
+    parser.add_argument("--queries", default=str(DEFAULT_QUERIES))
+    args = parser.parse_args()
+
+    if args.modulo == "descubrir":
+        config = cargar_config(args.env)
+        try:
+            validar_google_cse(config)
+            api_key = config["GOOGLE_CSE_API_KEY"]
+            engine_id = config["GOOGLE_CSE_ENGINE_ID"]
+        except Exception as e:
+            print(f"[!] Google CSE no disponible: {e}")
+            print("    Se procederá sin Google CSE; otras fuentes seguirán.")
+            api_key = None
+            engine_id = None
+
+        resumen = descubrir_ejecutar(
+            ruta_bd=Path(args.bd),
+            ruta_csv_men=Path(args.csv_men),
+            queries_path=Path(args.queries),
+            google_api_key=api_key,
+            google_engine_id=engine_id,
+        )
+        total = sum(resumen.values())
+        print(f"\nResumen de descubrimiento ({total} colegios nuevos):")
+        for fuente, n in resumen.items():
+            print(f"  {fuente}: +{n}")
+
+
+if __name__ == "__main__":
+    main()
