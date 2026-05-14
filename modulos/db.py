@@ -351,3 +351,68 @@ def marcar_borrador_creado(
         conn.commit()
     finally:
         conn.close()
+
+
+def borradores_listos_para_subir(ruta_bd) -> list[dict]:
+    """Devuelve los borradores en estado 'listo_para_subir' ordenados por fecha_creado.
+
+    Cada fila incluye los campos de `borradores` más el `correo_destinatario` del
+    colegio asociado (via JOIN), que es el campo canónico para el destinatario del
+    email (lo define `marcar_enriquecido`).
+    """
+    conn = conectar(ruta_bd)
+    try:
+        rows = conn.execute(
+            """SELECT b.id, b.colegio_id, b.tipo, b.asunto, b.cuerpo_carta,
+                      b.ruta_pdf_hv, b.estado, b.gmail_draft_id, b.fecha_creado,
+                      b.fecha_subido, b.error_mensaje,
+                      c.correo_destinatario
+                 FROM borradores b
+                 JOIN colegios c ON c.id = b.colegio_id
+                WHERE b.estado = 'listo_para_subir'
+                ORDER BY b.fecha_creado ASC, b.id ASC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def marcar_borrador_subido(ruta_bd, borrador_id: int, gmail_draft_id: str) -> None:
+    """Marca un borrador como 'subido', guarda el draft_id y fecha_subido.
+
+    Opera sólo sobre la tabla `borradores`. La transición del colegio
+    (enriquecido → borrador_creado) la hace `marcar_borrador_creado`.
+    """
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            """UPDATE borradores
+                  SET estado = 'subido',
+                      gmail_draft_id = ?,
+                      fecha_subido = CURRENT_TIMESTAMP
+                WHERE id = ?""",
+            (gmail_draft_id, borrador_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def marcar_borrador_fallo(ruta_bd, borrador_id: int, error_mensaje: str) -> None:
+    """Marca un borrador como 'fallo' y guarda el mensaje de error.
+
+    No toca el estado del colegio. Daniel puede reintentar más adelante (volver
+    a generar y subir) sin romper invariantes de transiciones.
+    """
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            """UPDATE borradores
+                  SET estado = 'fallo',
+                      error_mensaje = ?
+                WHERE id = ?""",
+            (error_mensaje, borrador_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
