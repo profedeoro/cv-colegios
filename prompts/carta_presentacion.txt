@@ -24,7 +24,7 @@ Estructura obligatoria (sin etiquetar las secciones):
 - Cierre: invitación cordial a revisar la HV adjunta, agradecimiento, y una línea final indicando que Daniel proporciona email y teléfono al pie del correo (no inventes los datos de contacto; solo deja el cierre redactado).
 
 Reglas estrictas (anti-alucinación):
-- NO inventes experiencia laboral, certificaciones, idiomas, publicaciones ni afiliaciones que no estén en RESUMEN_DANIEL.
+- NO inventes experiencia laboral, certificaciones, idiomas, publicaciones, afiliaciones, años, cifras, ni nombres de instituciones que no estén en RESUMEN_DANIEL.
 - Si `bilingue` es true y RESUMEN_DANIEL no documenta fluidez en el idioma_segundo, NO afirmes fluidez; puedes mencionar interés en programas bilingües sin sobrevenderse.
 - Si `ib` es true y RESUMEN_DANIEL no menciona experiencia IB, NO afirmes "experiencia IB"; en cambio, expresa disposición a familiarizarse con el marco.
 - Si `religioso` es true, mantén un tono respetuoso hacia los valores institucionales; NO inventes afiliación religiosa propia.
