@@ -5,6 +5,7 @@ import base64
 import mimetypes
 from email.message import EmailMessage
 from pathlib import Path
+from typing import Any
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -15,10 +16,7 @@ from googleapiclient.discovery import build
 SCOPES = ["https://www.googleapis.com/auth/gmail.compose"]
 
 
-def obtener_servicio_gmail(
-    ruta_credenciales: str = "config/credentials.json",
-    ruta_token: str = "config/gmail_token.json",
-):
+def obtener_servicio_gmail(ruta_token: str = "config/gmail_token.json") -> Any:
     """Devuelve un service de Gmail listo para usar.
 
     Lee el token previamente guardado por `autorizar_gmail.py`. Si está expirado
@@ -50,7 +48,7 @@ def obtener_servicio_gmail(
 
 
 def crear_borrador(
-    service,
+    service: Any,
     destinatario: str,
     asunto: str,
     cuerpo: str,

@@ -23,10 +23,7 @@ def _decodificar_raw(raw_b64: str) -> bytes:
 def test_obtener_servicio_falla_si_no_existe_token(tmp_path):
     ruta_token = tmp_path / "gmail_token.json"
     with pytest.raises(FileNotFoundError, match="autorizar_gmail"):
-        obtener_servicio_gmail(
-            ruta_credenciales=str(tmp_path / "credentials.json"),
-            ruta_token=str(ruta_token),
-        )
+        obtener_servicio_gmail(ruta_token=str(ruta_token))
 
 
 def test_obtener_servicio_con_token_valido_devuelve_service(tmp_path):
@@ -44,10 +41,7 @@ def test_obtener_servicio_con_token_valido_devuelve_service(tmp_path):
         mock_creds_cls.from_authorized_user_file.return_value = creds_mock
         mock_build.return_value = service_mock
 
-        service = obtener_servicio_gmail(
-            ruta_credenciales=str(tmp_path / "credentials.json"),
-            ruta_token=str(ruta_token),
-        )
+        service = obtener_servicio_gmail(ruta_token=str(ruta_token))
 
         assert service is service_mock
         mock_creds_cls.from_authorized_user_file.assert_called_once()
@@ -76,10 +70,7 @@ def test_obtener_servicio_refresca_token_expirado_y_guarda(tmp_path):
         mock_request_cls.return_value = request_instancia
         mock_build.return_value = service_mock
 
-        service = obtener_servicio_gmail(
-            ruta_credenciales=str(tmp_path / "credentials.json"),
-            ruta_token=str(ruta_token),
-        )
+        service = obtener_servicio_gmail(ruta_token=str(ruta_token))
 
         assert service is service_mock
         creds_mock.refresh.assert_called_once_with(request_instancia)
