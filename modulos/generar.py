@@ -185,12 +185,17 @@ def _asunto(nombre_colegio: str) -> str:
 
 
 def _nombres_permitidos(colegio: dict) -> set[str]:
-    """Tokens que el validador debe ignorar al detectar alucinaciones.
+    """Frases de nombres propios que el validador debe ignorar al detectar alucinaciones.
 
-    El validador tokeniza nombres propios y números, así que necesitamos pasarle
-    los TOKENS del nombre del colegio + ciudad (no los strings completos). Por
-    ejemplo, para "Colegio Bilingüe San José" extrae {"Colegio", "Bilingüe",
-    "San José"} y todos esos deben permitirse cuando aparezcan en la carta.
+    El validador opera sobre *frases* de nombres propios (no tokens sueltos),
+    así que devolvemos el conjunto de frases extraídas por `extraer_hechos`
+    a partir del nombre del colegio + ciudad (p. ej. "Colegio", "San José",
+    "Bogotá"). Adicionalmente añadimos como fallback los strings completos del
+    nombre y la ciudad, para que el validador pueda emparejar frases
+    multi-palabra como "Colegio Bilingüe San José" contra esa misma frase
+    multi-palabra en la carta generada (útil cuando el extractor no captura la
+    frase entera, por ejemplo porque algún carácter como "ü" no está en
+    `RE_PROPIO` de `validador.py`).
     """
     permitidos: set[str] = set()
     nombre = colegio.get("nombre", "") or ""

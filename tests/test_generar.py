@@ -189,17 +189,18 @@ def test_intentar_con_validacion_giveup_tras_3_intentos():
     assert resultado is None  # señal de giveup
 
 
-def test_nombres_permitidos_incluye_tokens_de_nombre_y_ciudad():
-    """_nombres_permitidos debe extraer los tokens (no solo strings completos) para
-    que el validador, que tokeniza, acepte cada palabra del nombre del colegio."""
+def test_nombres_permitidos_incluye_nombre_completo_y_ciudad():
+    """_nombres_permitidos debe incluir las frases de nombre propio extraídas
+    (p. ej. "San José", "Bogotá") y, como fallback, el nombre completo y la
+    ciudad completa, para que el validador acepte frases multi-palabra."""
     from modulos.generar import _nombres_permitidos
 
     colegio = {"nombre": "Colegio Bilingüe San José", "ciudad": "Bogotá"}
     permitidos = _nombres_permitidos(colegio)
-    # Debe incluir cada token relevante para que el validador no lo marque alucinado
+    # Frases de nombre propio extraídas por `extraer_hechos`
     assert "San José" in permitidos
     assert "Bogotá" in permitidos
-    # Y el string completo también, por si acaso
+    # Fallback: el nombre completo del colegio también debe estar
     assert "Colegio Bilingüe San José" in permitidos
 
 
