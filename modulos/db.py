@@ -279,3 +279,75 @@ def incrementar_intento_enriquecer(ruta_bd, colegio_id: int) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def colegios_para_generar(ruta_bd, limite: int = 15) -> list[dict]:
+    """Devuelve colegios en estado 'enriquecido' con < 3 intentos de generar, ordenados por fecha_enriquecido."""
+    conn = conectar(ruta_bd)
+    try:
+        rows = conn.execute(
+            """SELECT * FROM colegios
+               WHERE estado = 'enriquecido' AND intentos_generar < 3
+               ORDER BY fecha_enriquecido ASC
+               LIMIT ?""",
+            (limite,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def incrementar_intento_generar(ruta_bd, colegio_id: int) -> None:
+    """Incrementa contador de intentos de generar. Si llega a 3, el colegio queda fuera del próximo lote."""
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            "UPDATE colegios SET intentos_generar = intentos_generar + 1 WHERE id = ?",
+            (colegio_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def insertar_borrador(
+    ruta_bd,
+    colegio_id: int,
+    *,
+    tipo: str,
+    asunto: str,
+    cuerpo_carta: str,
+    ruta_pdf_hv: str,
+) -> int:
+    """Inserta una fila en borradores. `tipo` debe ser 'inicial' o 'seguimiento'. Devuelve el id."""
+    conn = conectar(ruta_bd)
+    try:
+        cur = conn.execute(
+            """INSERT INTO borradores (colegio_id, tipo, asunto, cuerpo_carta, ruta_pdf_hv)
+               VALUES (?, ?, ?, ?, ?)""",
+            (colegio_id, tipo, asunto, cuerpo_carta, ruta_pdf_hv),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def marcar_borrador_creado(
+    ruta_bd, colegio_id: int, gmail_draft_id: str, gmail_thread_id: str
+) -> None:
+    """Marca un colegio como borrador_creado y guarda los ids de Gmail.
+
+    Usa cambiar_estado para validar la transición enriquecido → borrador_creado, luego
+    persiste los identificadores de Gmail con un UPDATE adicional.
+    """
+    cambiar_estado(ruta_bd, colegio_id, "borrador_creado")
+    conn = conectar(ruta_bd)
+    try:
+        conn.execute(
+            "UPDATE colegios SET gmail_draft_id = ?, gmail_thread_id = ? WHERE id = ?",
+            (gmail_draft_id, gmail_thread_id, colegio_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
