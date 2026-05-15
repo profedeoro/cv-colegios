@@ -8,14 +8,12 @@ Para cada fila en `borradores` con estado `listo_para_subir`:
    - Transiciona el colegio a `borrador_creado` y guarda los ids de Gmail.
 4. En caso de error:
    - HttpError con señal clara de "correo inválido" (HTTP 400 +
-     mensaje del API) → marca el borrador como `fallo`, lo cuenta aparte en
-     el resumen. NO transiciona el colegio: el estado terminal
-     `correo_invalido` no existe aún en `TRANSICIONES_VALIDAS` ni en el
-     CHECK del esquema. Es una decisión deliberada conservadora — agregar
-     ese estado requiere migración de BD + ampliar la máquina de
-     transiciones, y es mejor que Daniel lo revise antes de incorporarlo.
-     El `error_mensaje` queda guardado en la fila del borrador para
-     trazabilidad.
+     mensaje del API) → marca el borrador como `fallo`, transiciona el
+     colegio al estado terminal `correo_invalido` y lo cuenta aparte en
+     el resumen. El `error_mensaje` queda guardado en la fila del
+     borrador para trazabilidad. `correo_invalido` es terminal: no hay
+     transiciones de salida, así que Daniel debe corregir el correo
+     manualmente si quiere reintentar.
    - Otros HttpError / excepciones inesperadas → marca el borrador como
      `fallo`, no toca el colegio (Daniel puede reintentar).
 5. Al final registra una fila en `registro_ejecuciones`.
@@ -32,6 +30,7 @@ from googleapiclient.errors import HttpError
 
 from modulos.db import (
     borradores_listos_para_subir,
+    cambiar_estado,
     marcar_borrador_creado,
     marcar_borrador_fallo,
     marcar_borrador_subido,
@@ -148,6 +147,18 @@ def ejecutar(ruta_bd, ruta_token: str = "config/gmail_token.json") -> dict:
                 marcar_borrador_fallo(
                     ruta_bd, bid, f"correo inválido: {e}",
                 )
+                # Transicionar el colegio al estado terminal correo_invalido.
+                # Si la transición falla (p. ej. el colegio ya no está en
+                # un estado del que se pueda llegar a correo_invalido), lo
+                # registramos pero NO escalamos a fallo genérico: el
+                # correo sí es inválido y eso es lo que el contador refleja.
+                try:
+                    cambiar_estado(ruta_bd, cid, "correo_invalido")
+                except Exception as e2:
+                    log.warning(
+                        f"[borrador {bid}] no se pudo transicionar colegio "
+                        f"{cid} a 'correo_invalido': {e2}"
+                    )
                 resumen["correo_invalido"] += 1
             else:
                 log.exception(f"[borrador {bid}] HttpError de Gmail: {e}")

@@ -3,8 +3,8 @@
 Cubre:
 - ejecutar() con cola vacía → no llama a Gmail, registra ejecución vacía.
 - 2 borradores OK → ambos marcados subido, ambos colegios pasan a borrador_creado.
-- HttpError con "Invalid 'to' header" → borrador marcado fallo y contado como
-  correo inválido (sin transición de colegio, ver decisión en módulo).
+- HttpError con "Invalid 'to' header" → borrador marcado fallo, colegio
+  transicionado a `correo_invalido` (estado terminal), contado aparte.
 - HttpError genérico → borrador marcado fallo, colegio queda en enriquecido.
 - Excepción inesperada → borrador marcado fallo, colegio queda en enriquecido.
 """
@@ -233,8 +233,8 @@ def test_ejecutar_correo_invalido_marca_fallo_y_cuenta_aparte(tmp_path):
     assert "correo" in (row["error_mensaje"] or "").lower() or \
            "invalid" in (row["error_mensaje"] or "").lower()
 
-    # Colegio queda en enriquecido (no se inventa transición).
-    assert obtener_estado(bd, cid) == "enriquecido"
+    # El colegio transiciona al estado terminal `correo_invalido`.
+    assert obtener_estado(bd, cid) == "correo_invalido"
 
 
 # ---------------------------------------------------------------------------
@@ -361,7 +361,7 @@ def test_ejecutar_mezcla_de_resultados(tmp_path):
     assert estados[bid_mal] == "fallo"
     assert estados[bid_err] == "fallo"
     assert cols[cid_ok] == "borrador_creado"
-    assert cols[cid_mal] == "enriquecido"  # no transicionamos por correo inválido
+    assert cols[cid_mal] == "correo_invalido"  # estado terminal por correo inválido
     assert cols[cid_err] == "enriquecido"
 
 
