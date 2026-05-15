@@ -603,3 +603,35 @@ def test_asunto_sigue_plantilla_del_spec(tmp_path, monkeypatch):
     # Sigue el formato del spec 4.3
     assert "Daniel" in asunto
     assert "Colegio Pedro Pascasio Martínez" in asunto
+
+
+# ---------------------------------------------------------------------------
+# _normalizar_nombre_colegio / _nombres_permitidos con nombres MEN abreviados
+# ---------------------------------------------------------------------------
+
+def test_normalizar_nombre_expande_abreviaturas_men():
+    from modulos.generar import _normalizar_nombre_colegio
+    assert _normalizar_nombre_colegio("COL FUND SANTA MARIA") == "Colegio Fundación Santa Maria"
+
+
+def test_normalizar_nombre_titlecasea_all_caps_sin_abreviatura():
+    from modulos.generar import _normalizar_nombre_colegio
+    assert _normalizar_nombre_colegio("ESCUELA PEDAGOGICA INTEGRAL") == "Escuela Pedagogica Integral"
+
+
+def test_normalizar_nombre_preserva_ya_normalizado():
+    from modulos.generar import _normalizar_nombre_colegio
+    assert _normalizar_nombre_colegio("Colegio Bilingüe San José") == "Colegio Bilingüe San José"
+
+
+def test_nombres_permitidos_incluye_version_normalizada():
+    """permitidos debe cubrir tanto el nombre crudo como el expandido."""
+    from modulos.generar import _nombres_permitidos
+    colegio = {"id": 1, "nombre": "COL FUND SANTA MARIA", "ciudad": "Bogotá,"}
+    permitidos = _nombres_permitidos(colegio)
+    # El nombre normalizado completo como string fallback
+    assert "Colegio Fundación Santa Maria" in permitidos
+    # Y la ciudad sin coma
+    assert "Bogotá" in permitidos
+    # El crudo también, por si Claude lo usa textualmente
+    assert "COL FUND SANTA MARIA" in permitidos

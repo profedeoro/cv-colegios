@@ -49,6 +49,39 @@ RUTA_PROMPT_CARTA = RAIZ / "prompts" / "carta_presentacion.txt"
 RE_PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 RE_EXP_BULLETS = re.compile(r"^EXP_(\d+)_BULLETS$")
 
+ABREV_MEN = {
+    "COL": "Colegio", "COLG": "Colegio", "CL": "Colegio",
+    "INST": "Institución", "INSTITUCION": "Institución", "INSTITUCIÓN": "Institución",
+    "IED": "Institución Educativa Distrital",
+    "IE": "Institución Educativa",
+    "FUND": "Fundación", "FUNDA": "Fundación", "FUNDACION": "Fundación", "FUNDACIÓN": "Fundación",
+    "ESC": "Escuela",
+    "LIC": "Liceo",
+    "GIM": "Gimnasio",
+    "JI": "Jardín Infantil", "JARDIN": "Jardín", "JARDÍN": "Jardín",
+    "CTRO": "Centro", "CENT": "Centro",
+}
+
+
+def _normalizar_nombre_colegio(nombre: str) -> str:
+    """Convierte 'COL FUND SANTA MARIA' → 'Colegio Fundación Santa Maria'.
+
+    Expande abreviaturas comunes del MEN; las palabras ALL CAPS sin abreviatura
+    conocida se title-casean (MARIA → Maria). Las palabras ya normalizadas se
+    preservan tal cual.
+    """
+    palabras = []
+    for p in nombre.split():
+        clave = p.upper().rstrip(".,")
+        if clave in ABREV_MEN:
+            palabras.append(ABREV_MEN[clave])
+        elif p.isupper():
+            palabras.append(p.capitalize())
+        else:
+            palabras.append(p)
+    return " ".join(palabras)
+
+
 MAX_INTENTOS_ALUCINACION = 3
 MAX_TOKENS_GENERACION = 1500
 
@@ -185,31 +218,25 @@ def _asunto(nombre_colegio: str) -> str:
 
 
 def _nombres_permitidos(colegio: dict) -> set[str]:
-    """Frases de nombres propios que el validador debe ignorar al detectar alucinaciones.
+    """Frases que el validador debe ignorar al detectar alucinaciones.
 
-    El validador opera sobre *frases* de nombres propios (no tokens sueltos),
-    así que devolvemos el conjunto de frases extraídas por `extraer_hechos`
-    a partir del nombre del colegio + ciudad (p. ej. "Colegio", "San José",
-    "Bogotá"). Adicionalmente añadimos como fallback los strings completos del
-    nombre y la ciudad, para que el validador pueda emparejar frases
-    multi-palabra como "Colegio Bilingüe San José" contra esa misma frase
-    multi-palabra en la carta generada (útil cuando el extractor no captura la
-    frase entera, por ejemplo porque algún carácter como "ü" no está en
-    `RE_PROPIO` de `validador.py`).
+    Incluye tanto el nombre original (MEN/ALL CAPS) como la versión normalizada
+    (`_normalizar_nombre_colegio`) más la ciudad, todas envueltas en un texto
+    de referencia con prefijo lowercase para que `extraer_hechos` capture
+    frases multi-palabra (la primera palabra al inicio de oración se ignora).
     """
     permitidos: set[str] = set()
     nombre = colegio.get("nombre", "") or ""
-    ciudad = colegio.get("ciudad", "") or ""
-    # Empezamos el texto con palabras minúsculas para que `extraer_hechos`
-    # capture la primera palabra mayúscula del nombre como hecho (sin esa
-    # antesala, las palabras al inicio de oración se ignoran).
-    texto_referencia = f"el colegio es {nombre} en {ciudad}."
+    ciudad = (colegio.get("ciudad", "") or "").rstrip(",.")
+    nombre_norm = _normalizar_nombre_colegio(nombre)
+    texto_referencia = (
+        f"el colegio es {nombre} en {ciudad}. "
+        f"también conocido como {nombre_norm}."
+    )
     permitidos.update(extraer_hechos(texto_referencia))
-    # También el string completo, por si el extractor lo encuentra entero.
-    if nombre:
-        permitidos.add(nombre)
-    if ciudad:
-        permitidos.add(ciudad)
+    for s in (nombre, nombre_norm, ciudad):
+        if s:
+            permitidos.add(s)
     return permitidos
 
 
@@ -275,8 +302,9 @@ def procesar_colegio(
     """
     log = obtener_logger("generar")
     cid = colegio["id"]
-    nombre = colegio["nombre"]
-    ciudad = colegio["ciudad"]
+    nombre_raw = colegio["nombre"]
+    nombre = _normalizar_nombre_colegio(nombre_raw)
+    ciudad = (colegio.get("ciudad") or "").rstrip(",.")
 
     perfil_colegio = colegio.get("perfil_pedagogico")
     if isinstance(perfil_colegio, str):
