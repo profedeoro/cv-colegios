@@ -217,9 +217,8 @@ def test_ejecutar_correo_invalido_marca_fallo_y_cuenta_aparte(tmp_path):
     assert resumen["total"] == 1
     assert resumen["subidos"] == 0
     assert resumen["correo_invalido"] == 1
-    # Decisión documentada: no transicionamos el colegio (correo_invalido aún no
-    # existe en TRANSICIONES_VALIDAS), pero igualmente NO se cuenta como fallo
-    # genérico para preservar la visibilidad.
+    # El colegio transiciona al estado terminal `correo_invalido` y se cuenta
+    # en `resumen["correo_invalido"]`, separado del contador `fallos`.
     assert resumen["fallos"] == 0
 
     conn = conectar(bd)

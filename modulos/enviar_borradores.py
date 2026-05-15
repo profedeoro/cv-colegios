@@ -16,6 +16,8 @@ Para cada fila en `borradores` con estado `listo_para_subir`:
      manualmente si quiere reintentar.
    - Otros HttpError / excepciones inesperadas → marca el borrador como
      `fallo`, no toca el colegio (Daniel puede reintentar).
+   - Si Gmail tuvo éxito pero la transición posterior del colegio falla,
+     se hace rollback y el borrador queda marcado como `fallo`.
 5. Al final registra una fila en `registro_ejecuciones`.
 
 Mockea `obtener_servicio_gmail` y `crear_borrador` desde este módulo en los
