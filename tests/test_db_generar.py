@@ -183,3 +183,59 @@ def test_marcar_borrador_creado_falla_desde_estado_invalido(tmp_path):
     # estado actual: descubierto. No es transición válida → borrador_creado.
     with pytest.raises(EstadoInvalidoError):
         marcar_borrador_creado(bd, cid, gmail_draft_id="d_x", gmail_thread_id="t_x")
+
+
+def test_colegios_para_generar_excluye_con_borrador_listo_para_subir(tmp_path):
+    """Si un colegio enriquecido ya tiene un borrador 'listo_para_subir' encolado,
+    no debe volver a salir en el lote de `generar`. Esto evita que dos corridas
+    seguidas de `generar` (sin un `enviar_borradores` entre medio) dupliquen
+    llamadas a la API de Claude y borradores en Gmail.
+    """
+    bd = _bd_inicial(tmp_path)
+    cid_con_borrador = insertar_colegio(bd, nombre="Colegio Encolado", ciudad="Bogotá",
+                                        departamento="Bogotá D.C.", fuente="MEN")
+    cid_sin_borrador = insertar_colegio(bd, nombre="Colegio Pendiente", ciudad="Bogotá",
+                                        departamento="Bogotá D.C.", fuente="MEN")
+    _enriquecer(bd, cid_con_borrador)
+    _enriquecer(bd, cid_sin_borrador)
+    # Encolar un borrador listo_para_subir (estado por defecto de insertar_borrador)
+    insertar_borrador(
+        bd, cid_con_borrador,
+        tipo="inicial",
+        asunto="Postulación docente E.F.",
+        cuerpo_carta="Estimado rector...",
+        ruta_pdf_hv="/tmp/hv.pdf",
+    )
+
+    pendientes = colegios_para_generar(bd, limite=10)
+    ids = [c["id"] for c in pendientes]
+    assert cid_con_borrador not in ids
+    assert cid_sin_borrador in ids
+
+
+def test_colegios_para_generar_incluye_si_unico_borrador_es_fallo(tmp_path):
+    """Si el único borrador asociado está en estado 'fallo', el colegio sí debe
+    volver a aparecer para que `generar` pueda reintentarlo.
+    """
+    bd = _bd_inicial(tmp_path)
+    cid = insertar_colegio(bd, nombre="Colegio Reintento", ciudad="Bogotá",
+                           departamento="Bogotá D.C.", fuente="MEN")
+    _enriquecer(bd, cid)
+    bid = insertar_borrador(
+        bd, cid,
+        tipo="inicial",
+        asunto="Postulación docente E.F.",
+        cuerpo_carta="Estimado rector...",
+        ruta_pdf_hv="/tmp/hv.pdf",
+    )
+    # Forzar el borrador a estado 'fallo' (sin pasar por la API real).
+    conn = conectar(bd)
+    try:
+        conn.execute("UPDATE borradores SET estado = 'fallo' WHERE id = ?", (bid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    pendientes = colegios_para_generar(bd, limite=10)
+    ids = [c["id"] for c in pendientes]
+    assert cid in ids

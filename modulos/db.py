@@ -405,12 +405,25 @@ def incrementar_intento_enriquecer(ruta_bd, colegio_id: int) -> None:
 
 
 def colegios_para_generar(ruta_bd, limite: int = 15) -> list[dict]:
-    """Devuelve colegios en estado 'enriquecido' con < 3 intentos de generar, ordenados por fecha_enriquecido."""
+    """Devuelve colegios en estado 'enriquecido' con < 3 intentos de generar, ordenados por fecha_enriquecido.
+
+    Excluye colegios que ya tienen un borrador en estado 'listo_para_subir' para
+    evitar reprocesarlos en sucesivas ejecuciones de `generar` (lo que duplicaría
+    llamadas a la API de Claude y, más adelante, borradores subidos a Gmail). Si
+    el único borrador existente está en estado 'fallo', el colegio sí aparece
+    para poder reintentarse.
+    """
     conn = conectar(ruta_bd)
     try:
         rows = conn.execute(
             """SELECT * FROM colegios
-               WHERE estado = 'enriquecido' AND intentos_generar < 3
+               WHERE estado = 'enriquecido'
+                 AND intentos_generar < 3
+                 AND NOT EXISTS (
+                     SELECT 1 FROM borradores
+                      WHERE borradores.colegio_id = colegios.id
+                        AND borradores.estado = 'listo_para_subir'
+                 )
                ORDER BY fecha_enriquecido ASC
                LIMIT ?""",
             (limite,),
