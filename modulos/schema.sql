@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS colegios (
     CHECK (estado IN (
         'descubierto', 'enriquecido', 'sin_correo', 'borrador_creado',
         'enviado', 'respondió', 'rebotó', 'seguimiento_pendiente',
-        'sin_respuesta', 'descartado', 'error', 'revisar_manualmente'
+        'sin_respuesta', 'descartado', 'error', 'revisar_manualmente',
+        'correo_invalido'
     ))
 );
 

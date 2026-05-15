@@ -15,7 +15,12 @@ def conectar(ruta: Path | str) -> sqlite3.Connection:
 
 
 def inicializar_db(ruta: Path | str) -> None:
-    """Crea la BD si no existe y aplica el schema (idempotente)."""
+    """Crea la BD si no existe y aplica el schema (idempotente).
+
+    Después de aplicar `schema.sql`, ejecuta migraciones idempotentes para
+    bases de datos creadas con versiones anteriores del esquema (en
+    particular, agregar `correo_invalido` al CHECK de `colegios.estado`).
+    """
     ruta = Path(ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
@@ -23,6 +28,120 @@ def inicializar_db(ruta: Path | str) -> None:
     try:
         conn.executescript(schema_sql)
         conn.commit()
+    finally:
+        conn.close()
+    _migrar_correo_invalido_si_falta(ruta)
+
+
+def _migrar_correo_invalido_si_falta(ruta: Path | str) -> bool:
+    """Asegura que el CHECK de `colegios.estado` incluya 'correo_invalido'.
+
+    `CREATE TABLE IF NOT EXISTS` en `schema.sql` no actualiza el CHECK de
+    una tabla preexistente, así que las BDs creadas con el esquema viejo
+    quedan con el CHECK desactualizado. Este helper detecta esa situación y
+    migra la tabla siguiendo el procedimiento documentado por SQLite:
+
+      1. Crear `colegios_new` con el CHECK ampliado.
+      2. Copiar todas las filas.
+      3. DROP `colegios`.
+      4. RENAME `colegios_new` → `colegios`.
+      5. Recrear índices.
+
+    Todo dentro de una transacción. La detección lee el `sql` de la tabla
+    en `sqlite_master`: si ya contiene el literal `'correo_invalido'`, el
+    CHECK está al día y la migración es no-op. Esto es más robusto que
+    una sonda con UPDATE (un UPDATE sin filas no dispara el CHECK).
+
+    Devuelve True si migró, False si era no-op. Es idempotente: ejecutar
+    dos veces seguidas → la segunda no hace nada.
+    """
+    conn = conectar(ruta)
+    try:
+        # Sólo aplica si la tabla ya existe (en BDs recién creadas con el
+        # schema vigente el CHECK ya incluye 'correo_invalido').
+        fila = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='colegios'"
+        ).fetchone()
+        if not fila:
+            return False
+        sql_actual = fila["sql"] or ""
+        if "'correo_invalido'" in sql_actual:
+            return False  # ya estaba al día
+
+        # Migración estilo SQLite documentado: crear nueva, copiar, swap.
+        # Usamos BEGIN/COMMIT explícito por las múltiples sentencias DDL.
+        conn.execute("BEGIN")
+        try:
+            conn.execute("""
+                CREATE TABLE colegios_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    nombre_normalizado TEXT NOT NULL,
+                    ciudad TEXT NOT NULL,
+                    departamento TEXT NOT NULL,
+                    nit TEXT,
+                    web TEXT,
+                    correo TEXT,
+                    correo_destinatario TEXT,
+                    fuente TEXT NOT NULL,
+                    perfil_pedagogico TEXT,
+                    palabras_clave TEXT,
+                    estado TEXT NOT NULL DEFAULT 'descubierto',
+                    intentos_enriquecer INTEGER NOT NULL DEFAULT 0,
+                    intentos_generar INTEGER NOT NULL DEFAULT 0,
+                    fecha_descubierto DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    fecha_enriquecido DATETIME,
+                    fecha_envio DATETIME,
+                    fecha_respuesta DATETIME,
+                    gmail_draft_id TEXT,
+                    gmail_thread_id TEXT,
+                    notas TEXT,
+                    CHECK (estado IN (
+                        'descubierto', 'enriquecido', 'sin_correo', 'borrador_creado',
+                        'enviado', 'respondió', 'rebotó', 'seguimiento_pendiente',
+                        'sin_respuesta', 'descartado', 'error', 'revisar_manualmente',
+                        'correo_invalido'
+                    ))
+                )
+            """)
+            conn.execute("""
+                INSERT INTO colegios_new (
+                    id, nombre, nombre_normalizado, ciudad, departamento, nit, web,
+                    correo, correo_destinatario, fuente, perfil_pedagogico, palabras_clave,
+                    estado, intentos_enriquecer, intentos_generar, fecha_descubierto,
+                    fecha_enriquecido, fecha_envio, fecha_respuesta, gmail_draft_id,
+                    gmail_thread_id, notas
+                )
+                SELECT id, nombre, nombre_normalizado, ciudad, departamento, nit, web,
+                       correo, correo_destinatario, fuente, perfil_pedagogico, palabras_clave,
+                       estado, intentos_enriquecer, intentos_generar, fecha_descubierto,
+                       fecha_enriquecido, fecha_envio, fecha_respuesta, gmail_draft_id,
+                       gmail_thread_id, notas
+                  FROM colegios
+            """)
+            conn.execute("DROP TABLE colegios")
+            conn.execute("ALTER TABLE colegios_new RENAME TO colegios")
+            # Recrear los índices que dependían de la tabla vieja
+            # (DROP TABLE en SQLite también elimina sus índices).
+            conn.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_colegios_dedup
+                    ON colegios(nombre_normalizado, ciudad)
+            """)
+            conn.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_colegios_nit
+                    ON colegios(nit) WHERE nit IS NOT NULL
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS ix_colegios_estado ON colegios(estado)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS ix_colegios_thread ON colegios(gmail_thread_id)"
+            )
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            raise
     finally:
         conn.close()
 
@@ -98,9 +217,9 @@ class EstadoInvalidoError(Exception):
 
 TRANSICIONES_VALIDAS = {
     "descubierto": {"enriquecido", "sin_correo", "error", "descartado", "revisar_manualmente"},
-    "enriquecido": {"borrador_creado", "descartado", "revisar_manualmente"},
+    "enriquecido": {"borrador_creado", "descartado", "revisar_manualmente", "correo_invalido"},
     "sin_correo": {"enriquecido", "descartado"},
-    "borrador_creado": {"enviado", "rebotó", "descartado"},
+    "borrador_creado": {"enviado", "rebotó", "descartado", "correo_invalido"},
     "enviado": {"respondió", "seguimiento_pendiente", "rebotó", "descartado"},
     "seguimiento_pendiente": {"respondió", "sin_respuesta", "descartado"},
     "respondió": {"descartado"},
@@ -109,6 +228,10 @@ TRANSICIONES_VALIDAS = {
     "descartado": set(),
     "error": {"descubierto", "descartado"},
     "revisar_manualmente": {"enriquecido", "descartado"},
+    # Terminal: Gmail rechazó la dirección destinatario en `enviar_borradores`.
+    # No hay transiciones de salida — Daniel debe corregir el correo
+    # manualmente (cambiando datos del colegio) si quiere reintentar.
+    "correo_invalido": set(),
 }
 
 ESTADOS_VALIDOS = set(TRANSICIONES_VALIDAS.keys())

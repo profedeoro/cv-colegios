@@ -38,3 +38,27 @@ def test_estado_inexistente_falla(tmp_path):
     ruta, cid = _crear(tmp_path)
     with pytest.raises(EstadoInvalidoError, match="estado desconocido"):
         cambiar_estado(ruta, cid, "estado_que_no_existe")
+
+
+def test_correo_invalido_desde_enriquecido(tmp_path):
+    ruta, cid = _crear(tmp_path)
+    cambiar_estado(ruta, cid, "enriquecido")
+    cambiar_estado(ruta, cid, "correo_invalido")
+    assert obtener_estado(ruta, cid) == "correo_invalido"
+
+
+def test_correo_invalido_desde_borrador_creado(tmp_path):
+    ruta, cid = _crear(tmp_path)
+    cambiar_estado(ruta, cid, "enriquecido")
+    cambiar_estado(ruta, cid, "borrador_creado")
+    cambiar_estado(ruta, cid, "correo_invalido")
+    assert obtener_estado(ruta, cid) == "correo_invalido"
+
+
+def test_correo_invalido_es_terminal(tmp_path):
+    ruta, cid = _crear(tmp_path)
+    cambiar_estado(ruta, cid, "enriquecido")
+    cambiar_estado(ruta, cid, "correo_invalido")
+    # No hay transiciones de salida — ni siquiera a 'descartado'.
+    with pytest.raises(EstadoInvalidoError, match="no se puede pasar"):
+        cambiar_estado(ruta, cid, "descartado")
