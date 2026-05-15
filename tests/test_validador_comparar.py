@@ -30,3 +30,36 @@ def test_nombre_propio_del_destinatario_no_cuenta():
         nombres_permitidos={"Colegio San Tarsicio"},
     )
     assert "Colegio San Tarsicio" not in nuevos
+
+
+def test_detectar_alucinaciones_es_insensible_a_acentos():
+    """'María' generado debe matchear con 'Maria' en permitidos."""
+    cv = "Daniel trabajó en docencia."
+    gen = "Trabajó en el Colegio Santa María."
+    permitidos = {"Colegio Santa Maria"}
+    assert detectar_alucinaciones(cv, gen, permitidos) == set()
+
+
+def test_detectar_alucinaciones_cv_sin_acentos_matchea_generado_con_acentos():
+    """Si CV original viene sin acentos (escaneado/OCR), generado con acentos no se flaguea."""
+    cv = "Daniel vivio en Bogota durante 2020."
+    gen = "Daniel vivió en Bogotá durante 2020."
+    assert detectar_alucinaciones(cv, gen) == set()
+
+
+def test_detectar_alucinaciones_si_flaguea_hechos_genuinamente_inventados():
+    """Comparación accent-insensitive NO debe encubrir alucinaciones reales."""
+    cv = "Daniel trabajó en Bogotá."
+    gen = "Daniel publicó en la Universidad Nacional con el profesor Pedro Castaño."
+    flagged = detectar_alucinaciones(cv, gen)
+    # "Universidad Nacional" y "Pedro Castaño" NO están en cv → flagueados
+    assert any("Universidad" in f or "Pedro" in f for f in flagged)
+
+
+def test_detectar_alucinaciones_devuelve_forma_original_acentuada():
+    """Cuando algo SÍ es alucinación, devolver la forma original (con acentos)."""
+    cv = "Daniel es profesor."
+    gen = "Daniel trabajó en la Universidad de Antioquía."  # 'Antioquía' inventado
+    flagged = detectar_alucinaciones(cv, gen)
+    # Debe contener la forma original con acento, no la normalizada
+    assert any("Antioquía" in f for f in flagged)
