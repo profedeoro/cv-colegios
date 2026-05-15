@@ -46,6 +46,22 @@ def extraer_hechos(texto: str) -> set[str]:
     return hechos
 
 
+def _es_subfrase(corta: str, larga: str) -> bool:
+    """True si las palabras de `corta` aparecen contiguamente en `larga`.
+
+    Comparación a nivel de palabras (split por whitespace). Insensible al
+    case/acentos — el caller debe normalizar antes si quiere ese comportamiento.
+    """
+    palabras_c = corta.split()
+    palabras_l = larga.split()
+    if not palabras_c or len(palabras_c) > len(palabras_l):
+        return False
+    for i in range(len(palabras_l) - len(palabras_c) + 1):
+        if palabras_l[i:i+len(palabras_c)] == palabras_c:
+            return True
+    return False
+
+
 def detectar_alucinaciones(
     cv_original: str,
     texto_generado: str,
@@ -53,14 +69,19 @@ def detectar_alucinaciones(
 ) -> set[str]:
     """Devuelve los hechos del texto_generado que NO están en cv_original ni en nombres_permitidos.
 
-    La comparación es INSENSIBLE a acentos (María == Maria, Bogotá == Bogota).
-    Esto cubre el caso típico donde Claude escribe español formal con acentos pero
-    la fuente (CV o BD MEN) no los tiene.
+    Comparación insensible a acentos. Acepta subfrases contiguas: si un hecho
+    generado (p. ej. 'Daniel') aparece como subsecuencia de palabras de un
+    hecho del CV o de permitidos (p. ej. 'Daniel Eduardo Villalba de Oro'), se
+    considera consistente con la fuente.
     """
     hechos_cv = {_quitar_acentos(h) for h in extraer_hechos(cv_original)}
     permitidos = {_quitar_acentos(p) for p in (nombres_permitidos or set())}
     flagged = set()
     for hecho in extraer_hechos(texto_generado):
-        if _quitar_acentos(hecho) not in hechos_cv and _quitar_acentos(hecho) not in permitidos:
-            flagged.add(hecho)
+        h_norm = _quitar_acentos(hecho)
+        if any(_es_subfrase(h_norm, c) for c in hechos_cv):
+            continue
+        if any(_es_subfrase(h_norm, p) for p in permitidos):
+            continue
+        flagged.add(hecho)
     return flagged

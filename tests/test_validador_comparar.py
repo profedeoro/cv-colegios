@@ -63,3 +63,44 @@ def test_detectar_alucinaciones_devuelve_forma_original_acentuada():
     flagged = detectar_alucinaciones(cv, gen)
     # Debe contener la forma original con acento, no la normalizada
     assert any("Antioquía" in f for f in flagged)
+
+
+def test_detectar_alucinaciones_acepta_nombre_corto_de_persona_completa():
+    """'Daniel' generado debe aceptarse cuando CV tiene 'Daniel Eduardo Villalba de Oro'."""
+    cv = "Daniel Eduardo Villalba de Oro nació en Colombia."
+    gen = "El profesor Daniel enseña matemáticas."
+    assert detectar_alucinaciones(cv, gen) == set()
+
+
+def test_detectar_alucinaciones_acepta_subfrase_de_permitidos():
+    """'Escuela Pedagógica Integral' debe aceptarse si permitidos tiene la versión con IDIPRON."""
+    cv = "Daniel es docente."
+    gen = "Trabaja en la Escuela Pedagogica Integral."
+    permitidos = {"Escuela Pedagogica Integral Idipron"}
+    assert detectar_alucinaciones(cv, gen, permitidos) == set()
+
+
+def test_detectar_alucinaciones_rechaza_palabras_no_contiguas_en_cv():
+    """Una combinación de palabras del CV pero NO contiguas debe seguir flagueándose."""
+    cv = "Daniel trabajó en Bogotá. Innovación Educativa fue su área."
+    gen = "Daniel publicó en la Universidad Nacional."
+    flagged = detectar_alucinaciones(cv, gen)
+    # 'Universidad Nacional' no es subfrase de ningún hecho del cv → flagueado
+    assert any("Universidad" in f for f in flagged)
+
+
+def test_detectar_alucinaciones_aun_flaguea_anos_inventados():
+    """Numbers son hechos atómicos — la subfrase NO los protege."""
+    cv = "Daniel trabajó desde 2020."
+    gen = "Daniel se graduó en 2050."
+    flagged = detectar_alucinaciones(cv, gen)
+    assert "2050" in flagged
+
+
+def test_detectar_alucinaciones_subfrase_es_orden_estricto():
+    """'Maestría Innovación' (sin 'de') NO debe matchear 'Maestría de Innovación'."""
+    cv = "Cursó la Maestría de Innovación Educativa."
+    gen = "Hizo la Maestría Innovación."
+    flagged = detectar_alucinaciones(cv, gen)
+    # 'Maestría Innovación' no es subsecuencia contigua de 'Maestría de Innovación Educativa'
+    assert any("Maestría" in f or "Innovación" in f for f in flagged)
