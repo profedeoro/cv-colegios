@@ -55,3 +55,25 @@ def test_palabra_despues_de_signo_exclamacion():
     """Después de '! ' tampoco se extrae."""
     hechos = extraer_hechos("Increíble! Bogota nos sorprendió.")
     assert "Bogota" not in hechos
+
+
+def test_extraer_hechos_no_flaguea_pronombre_inicio_parrafo():
+    """'Me' al inicio de párrafo tras \\n no debe contar como nombre propio."""
+    texto = "Estimado equipo,\n\nMe dirijo a ustedes con respeto."
+    assert "Me" not in extraer_hechos(texto)
+
+
+def test_extraer_hechos_no_flaguea_pronombre_inicio_texto():
+    """'Hola' al inicio del texto no debe contar como nombre propio."""
+    assert "Hola" not in extraer_hechos("Hola mundo.")
+
+
+def test_extraer_hechos_si_flaguea_propio_mid_oracion():
+    """'Daniel' en medio de oración SÍ debe ser nombre propio."""
+    assert "Daniel" in extraer_hechos("El profesor Daniel enseña matemáticas.")
+
+
+def test_extraer_hechos_no_flaguea_propio_inicio_parrafo_con_indentacion():
+    """Espacios/tabs después del \\n no deben rescatar 'Me' como propio."""
+    texto = "foo.\n  Mi nombre es..."
+    assert "Mi" not in extraer_hechos(texto)
