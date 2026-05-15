@@ -5,7 +5,7 @@ RE_ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 RE_NUMERO = re.compile(r"\b\d{1,4}\b")
 RE_ISBN = re.compile(r"\b(?:97[89][- ]?)?\d{1,5}[- ]?\d{1,7}[- ]?\d{1,7}[- ]?[\dX]\b")
 RE_DOI = re.compile(r"10\.\d{4,9}/[-._;()/:A-Za-z0-9]+")
-RE_PROPIO = re.compile(r"\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+(?:de\s+|del\s+|la\s+|las\s+|los\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*\b")
+RE_PROPIO = re.compile(r"\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:[ \t]+(?:de[ \t]+|del[ \t]+|la[ \t]+|las[ \t]+|los[ \t]+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*\b")
 
 
 def _quitar_acentos(s: str) -> str:

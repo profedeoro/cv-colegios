@@ -77,3 +77,24 @@ def test_extraer_hechos_no_flaguea_propio_inicio_parrafo_con_indentacion():
     """Espacios/tabs después del \\n no deben rescatar 'Me' como propio."""
     texto = "foo.\n  Mi nombre es..."
     assert "Mi" not in extraer_hechos(texto)
+
+
+def test_extraer_hechos_no_cruza_saltos_de_linea_en_frases_propias():
+    """Un nombre propio multipalabra NO debe atravesar un \\n.
+
+    Ejemplo: 'Colombia\\nMiembro Investigador' debe extraerse como dos hechos
+    separados ('Colombia' mid-line, y 'Miembro Investigador' como frase), no
+    como una sola frase combinada.
+    """
+    texto = "Trabajó en Bogotá DC, Colombia\nMiembro Investigador desde 2024."
+    hechos = extraer_hechos(texto)
+    assert "Miembro Investigador" in hechos
+    # NO debe existir la versión combinada con \n
+    assert not any("\n" in h for h in hechos)
+
+
+def test_extraer_hechos_acepta_frases_propias_con_tab():
+    """Tabuladores entre palabras de un nombre propio sí cuentan."""
+    texto = "El profesor Daniel\tVillalba dictó la conferencia."
+    hechos = extraer_hechos(texto)
+    assert "Daniel\tVillalba" in hechos or "Daniel Villalba" in hechos
