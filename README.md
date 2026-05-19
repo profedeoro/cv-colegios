@@ -1,5 +1,9 @@
 # cv-colegios
 
+[![tests](https://github.com/profedeoro/cv-colegios/actions/workflows/tests.yml/badge.svg)](https://github.com/profedeoro/cv-colegios/actions/workflows/tests.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/)
+
 Herramienta semi-automática para personalizar y enviar la hoja de vida a colegios privados de Bogotá, Antioquia y Barranquilla.
 
 A partir del directorio público del MEN, el pipeline:
