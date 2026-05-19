@@ -41,6 +41,8 @@ data/cv_base.docx
 data/cv_base_polished.pdf
 data/cv_base_polished.docx
 data/plantilla_base.docx
+data/plantilla_base.bak*
+data/raw/
 data/salida/
 data/logs/
 
